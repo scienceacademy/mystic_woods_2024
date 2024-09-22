@@ -4,6 +4,7 @@ class_name Skeleton
 @export var walk_speed = 50
 enum states {IDLE, CHASE, ATTACK, HURT, DEAD}
 var state = states.IDLE
+var prev_state = states.IDLE
 var player
 var health = 3
 
@@ -25,7 +26,15 @@ func choose_action():
 		states.ATTACK:
 			velocity = Vector2.ZERO
 			$AnimationPlayer.play("attack")
-
+			#if not player in $Attack.get_overlapping_bodies():
+				#state = states.CHASE
+		states.HURT:
+			pass
+		states.DEAD:
+			$AnimationPlayer.play("death")
+			set_physics_process(false)
+			$CollisionShape2D.disabled = true
+		
 func _on_detect_body_entered(body):
 	player = body
 	state = states.CHASE
@@ -38,4 +47,20 @@ func _on_attack_body_entered(body):
 	state = states.ATTACK
 	
 func _on_attack_body_exited(body):
+	if state == states.HURT:
+		prev_state = states.CHASE
+		return
 	state = states.CHASE
+	
+func hurt(amount, dir):
+	if state == states.HURT:
+		return
+	$AnimationPlayer.play("hurt")
+	health -= amount
+	prev_state = state
+	state = states.HURT
+	velocity = dir * 50
+	await get_tree().create_timer(.4).timeout
+	state = prev_state
+	if health <= 0:
+		state = states.DEAD
